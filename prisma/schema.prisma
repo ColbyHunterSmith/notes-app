@@ -1,0 +1,175 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  id_token          String? @db.Text
+  access_token      String? @db.Text
+  refresh_token     String? @db.Text
+  token_type        String?
+  scope             String?
+  session_state     String?
+  expires_at        Int?
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  expires      DateTime
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id                     String                   @id @default(cuid())
+  name                   String?
+  email                  String?                  @unique
+  emailVerified          DateTime?
+  image                  String?
+  accounts               Account[]
+  sessions               Session[]
+  workspaces             Workspace[]
+  starredNotes           StarredNote[]
+  starredWorkspaces      StarredWorkspace[]
+  WorkspaceCollaborators WorkspaceCollaborators[]
+  NoteCollaborators      NoteCollaborators[]
+  TeamCollaborators      TeamCollaborators[]
+  Note                   Note[]
+  Tag                    Tag[]
+
+  @@fulltext([name])
+}
+
+model Team {
+  id                String              @id @default(cuid())
+  name              String
+  description       String?
+  TeamCollaborators TeamCollaborators[]
+}
+
+model TeamCollaborators {
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([userId, teamId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Workspace {
+  id                String                   @id @default(cuid())
+  name              String
+  description       String?
+  notes             Note[]
+  user              User                     @relation(fields: [userId], references: [id])
+  userId            String
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  starredWorkspaces StarredWorkspace[]
+  collaborators     WorkspaceCollaborators[]
+
+  @@index([id])
+}
+
+model Note {
+  id            String              @id @default(cuid())
+  color         String?
+  title         String
+  content       Json
+  user          User                @relation(fields: [userId], references: [id])
+  userId        String
+  workspaceId   String
+  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  StarredNote   StarredNote[]
+  collaborators NoteCollaborators[]
+  Tag           Tag?                @relation(fields: [tagId], references: [id])
+  tagId         String?
+  NoteTags      NoteTags[]
+
+  @@index([id])
+}
+
+model Tag {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  name        String
+  description String?
+  color       String?
+  notes       Note[]
+  NoteTags    NoteTags[]
+
+  @@index([id, userId])
+}
+
+model NoteTags {
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+}
+
+model WorkspaceCollaborators {
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  addedAt     DateTime  @default(now())
+
+  @@id([workspaceId, userId])
+}
+
+model NoteCollaborators {
+  noteId  String
+  note    Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User     @relation(fields: [userId], references: [id])
+  addedAt DateTime @default(now())
+
+  @@id([noteId, userId])
+}
+
+model StarredWorkspace {
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([userId, workspaceId])
+}
+
+model StarredNote {
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@id([userId, noteId])
+}
